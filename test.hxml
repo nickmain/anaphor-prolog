@@ -2,7 +2,5 @@
 --class-path test
 --library utest
 --macro nullSafety("anaphor", Strict)
---each
-
---interp
---main anaphor.prolog.Main
+--main unit.UnitTests
+-x unit.UnitTests
