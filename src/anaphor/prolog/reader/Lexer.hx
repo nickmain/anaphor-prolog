@@ -3,19 +3,48 @@
 
 package anaphor.prolog.reader;
 
-enum TokenValue {
+enum TokenType {
     string(value: String);
     integer(value: Int);
-    float(value: Float);    
+    float(value: Float);   
+	variable(name: String);
+    atom(value: String);
+    operator(value: String);
+	whitespace(value: String);
+	period;
+	eof;
+	openParen;
+	closeParen;
+	openBrace;
+	closeBrace;
+	openBracket;
+	closeBracket;
 }
 
-class Token {
+typedef Token = { type: TokenType, line: Int, col: Int }
 
-    public var startLine(default,null): Int;
-    public var startCol (default,null): Int;
-    public var endLine  (default,null): Int;
-    public var endCol   (default,null): Int;     
+class Lexer {
+    public static inline var OP_CHARS  : String = "#$&*+-./:<=>?@^~\\";
+    public static inline var WHITESPACE: String = " \n\r\t\x0C";
+
+    var lineNum = 0;
+    var index = 0;
+    var line: String;
+    var input: haxe.io.Input;
+
+    public function new(input: Input) {
+        this.input = input;
+    }
+
     
+
+    public function read(): Token {
+        // TODO: implement me
+        return eof;
+    }
+} 
+
+class Token {    
     public var value(default,null): TokenValue;
     public var type (default,null): TokenType;
     
@@ -44,19 +73,3 @@ class Token {
     }
 }
 
-enum TokenType {
-	variable;
-	atom;
-	int;
-	float;
-	whitespace;
-	string;
-	termEnd;
-	eof;
-	openParen;
-	closeParen;
-	openBrace;
-	closeBrace;
-	openBracket;
-	closeBracket;
-}
