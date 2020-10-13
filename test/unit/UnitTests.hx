@@ -3,13 +3,11 @@
 
 package unit;
 
-import utest.Assert;
-
 class UnitTests {
     public static function main() {
         utest.UTest.run([
             new unit.TestCase(), 
-            new unit.TestCase3()
+            new unit.LexerTests()
         ]);   
     }
 }
