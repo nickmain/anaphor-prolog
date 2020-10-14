@@ -3,10 +3,23 @@
 
 package unit;
 import utest.Assert;
+import anaphor.prolog.reader.Lexer;
+import anaphor.prolog.reader.Lexer.Lexeme;
+import haxe.io.StringInput;
 
 class LexerTests extends utest.Test {
+
+	function lexemes(s: String): Array<Lexeme> {
+		final lexer = new Lexer(new StringInput(s));
+		final lexs: Array<Lexeme> = [];
+
+		lexs.push(lexer.read());
+		return lexs;
+	}
+
 	function testStrings() {
-		Assert.fail("unimplemented");	
+		Assert.equals(openList, lexemes("foo")[0].token);
+		//Assert.fail("unimplemented");	
 	}
 
 	function testIntegers() {
@@ -21,11 +34,7 @@ class LexerTests extends utest.Test {
 		Assert.fail("unimplemented");	
 	}
 
-	function testAtoms() {
-		Assert.fail("unimplemented");	
-	}
-
-	function testOperators() {
+	function testNames() {
 		Assert.fail("unimplemented");	
 	}
 
@@ -45,11 +54,11 @@ class LexerTests extends utest.Test {
 		Assert.fail("unimplemented");	
 	}
 
-	function testBraces() {
+	function testCurlies() {
 		Assert.fail("unimplemented");	
 	}
 
-	function testBrackets() {
+	function testLists() {
 		Assert.fail("unimplemented");	
 	}
 

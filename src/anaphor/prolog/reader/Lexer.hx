@@ -3,117 +3,72 @@
 
 package anaphor.prolog.reader;
 
-enum TokenType {
+import haxe.io.Input;
+
+typedef Lexeme = { token: Token, line: Int, start: Int, end: Int }
+
+enum Token {
     string(value: String);
     integer(value: Int);
     float(value: Float);   
 	variable(name: String);
-    atom(value: String);
-    operator(value: String);
-	whitespace(value: String);
-	period;
-	eof;
+    name(value: String);
 	openParen;
 	closeParen;
-	openBrace;
-	closeBrace;
-	openBracket;
-    closeBracket;
+	openCurly;
+	closeCurly;
+	openList;
+    closeList;
+    headTailSeparator;
+    comma;
+    endTerm;
+    
+	finished;
+    problem(problem: LexerProblem);
+}
+
+enum LexerProblem {
     exception(ex: haxe.Exception);
     unknown(msg: String);
 }
 
-typedef Token = { type: TokenType, line: Int, col: Int }
-
-enum LexerState {
+private enum LexerState {
     gatheringString;
     gatheringWhitespace;
     gatheringOperator;
     gatheringAtom;
     gatheringVar;
     idle;
+    finished;
+    problem(problem: LexerProblem);
 }
 
 class Lexer {
-    public static inline var OP_CHARS  : String = "#$&*+-./:<=>?@^~\\";
-    public static inline var WHITESPACE: String = " \n\r\t\x0C";
 
     var lineNum = 0;
     var index = 0;
     var line = "";
-    var input: haxe.io.Input;
+    var input: Input;
     var state = LexerState.idle;
     
     public function new(input: Input) {
         this.input = input;
     }
 
-    public function read(): Token {
-        if(token != null) return theToken();
+    public function read(): Lexeme {
+        if(state == finished) return lexeme(eof, 0);
 
-        readWhitespace();
-        if(token != null) return theToken();
-
-        // should now be at a valid char
-        final char = line.charAt(index);
-
-        if(char == "(") return tokenType(openParen, 1);
-        if(char == ")") return tokenType(closeParen, 1);
-        if(char == "[") return tokenType(openBracket, 1);
-        if(char == "]") return tokenType(closeBracket, 1);
-        if(char == "{") return tokenType(openBrace, 1);
-        if(char == "}") return tokenType(closeBrace, 1);
-        if(char == ".") return tokenType(period, 1);
+        return lexeme(endTerm, 1);
 
         // TODO: implement me
-        return { type: unknown(msg: "implement me"), line: line, col: index+1 };
+      //  return lexeme(unknown(msg: "implement me"), 1};
     }
 
-    inline function isWhitespace(char: String): Bool {
-        return char == " " 
-            || char == "\n"
-            || char == "\r"
-            || char == "\t"
-            || char == "\x0C";
-    }
-
-    // Make a token to return
-    function tokenType(type: TokenType, size: Int): Token {
-        final t = { type: type, line: line, col: index+1 };
+    // Make a lexeme to return
+    function lexeme(token: Token, size: Int): Lexeme {
+        final lex: Lexeme = { token: token, line: lineNum, col: index+1 };
         index += size;
-        return t;
-    }
-
-    // Predetermined token to return
-    function theToken(): Token {
-        if(token != null) {
-            switch(token.type) {
-                case eof: return token;
-                case exception(_): return token;
-                default:
-            }
-
-            final t = token;
-            token = null;
-            return t;
-        }
-
-        return { type: unknown(msg: "oops"), line: line, col: index+1 };
-    }
-
-    // Consume whitespace, including new lines until eof or a char is reached
-    function readWhitespace() {
-        while(token == null) {
-            final char = line.charAt(index);
-
-
-
-        }
-
-        while(index >= length) {
-            readNextLine();            
-        }
-
+        return lex;
     }
 
     function readNextLine() {
@@ -121,12 +76,13 @@ class Lexer {
             index = 0;
             lineNum++;
             line = input.readLine();
+            return;
         } 
         catch(_: haxe.io.Eof) {
-            token = { type: eof, line: line, col: index+1 };
+            state = finished;
         }
         catch(e) {
-            token = { type: exception(ex: e), line: line, col: index+1 };
+            state = exception(e);
         }
 
         line = "";
