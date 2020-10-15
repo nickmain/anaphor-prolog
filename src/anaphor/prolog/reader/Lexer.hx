@@ -61,18 +61,10 @@ class Lexer {
     // Return "finished" if there are no more tokens in the input.
     // Return "problem(..)" if any problem is or was previously encountered.
     public function read(): Lexeme {
-        switch(state) {
-            case finished: return lexeme(finished);
-            case problem(p): return lexeme(problem(p), index);
-            default:
-        }
+        if(! state.match(ready)) return stateLexeme();
 
         consumeWhitespace();
-        switch(state) {
-            case finished: return lexeme(finished);
-            case problem(p): return lexeme(problem(p), index);
-            default:
-        }
+        if(! state.match(ready)) return stateLexeme();
 
         return gatherToken();
     }
@@ -82,23 +74,33 @@ class Lexer {
     function gatherToken(): Lexeme {
         final char = line.charAt(index);
 
-        if(char == Char.semicolon) return lexeme(name(Char.semicolon), index, index);
-        if(char == Char.cut) return lexeme(name(Char.cut), index, index);
+        if(char == Char.semicolon) return lexeme(name(Char.semicolon));
+        if(char == Char.cut) return lexeme(name(Char.cut));
 
         return lexeme(name("poop"), index, index);
     }
 
     // Make a lexeme from current state
-    function lexeme(token: Token, start: Int = - 1, end: Int = -1): Lexeme {        
+    function lexeme(token: Token, start: Int = - 1, end: Int = -1): Lexeme { 
+        if(start < 0) start = index;
+        if(end < 0) end = index;       
         final lex: Lexeme = { token: token, line: lineNum, start: start, end: end };
-        if(end >= 0) index = end + 1;
+        index = end + 1;
         return lex;
     }
 
+    // Make a lexeme for finished or problem state
+    function stateLexeme(): Lexeme {
+        switch(state) {
+            case problem(p): return { token: problem(p), line: lineNum, start: index, end: index };
+            default: return { token: finished, line: lineNum, start: index, end: index };
+        }
+    }
+    
     // Consume whitespace and comments.
     // On return index points at char after whitespace
     function consumeWhitespace() {
-        while(state == ready) {
+        while(state.match(ready)) {
             // consume whitespace until non-ws or end of line
             var char = line.charAt(index);
             while(Char.isLayout(char)) {
@@ -127,8 +129,8 @@ class Lexer {
     // Consume block comment.
     // On return index points at char after closing "*/"
     function consumeBlockComment() {
-        while(state == ready) {
-            final end =line.indexOf(Char.commentEnd, index);
+        while(state.match(ready)) {
+            final end = line.indexOf(Char.commentEnd, index);
             if(end >= 0) {
                 index += Char.commentEnd.length;
                 state = ready;
@@ -136,7 +138,7 @@ class Lexer {
             }
 
             readNextLine();
-            if(state == finished) {
+            if(state.match(finished)) {
                 state = problem(unterminatedBlockComment);
             }
         }

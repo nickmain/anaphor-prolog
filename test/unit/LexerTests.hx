@@ -5,7 +5,9 @@ package unit;
 import utest.Assert;
 import anaphor.prolog.reader.Lexer;
 import anaphor.prolog.reader.Lexer.Lexeme;
+import anaphor.prolog.reader.Lexer.Token;
 import haxe.io.StringInput;
+using haxe.EnumTools.EnumValueTools;
 
 class LexerTests extends utest.Test {
 
@@ -18,7 +20,8 @@ class LexerTests extends utest.Test {
 	}
 
 	function testCut() {
-		Assert.equals(name("!"), lexemes(" ! whatever")[0].token);
+		Assert.isTrue(lexemes(" ! whatever")[0].token.match(Token.name("!")));
+		// TODO: build utils to match tokens 
 	}
 
 	function testLineEndComments() {
