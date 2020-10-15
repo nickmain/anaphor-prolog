@@ -5,6 +5,16 @@ package anaphor.prolog.reader;
 
 class Char {
 
+    // ISO 6.4.1 Comment chars
+    public static inline final comment1 = "/";
+    public static inline final comment2 = "*";
+    public static inline final commentEnd = "*/";
+
+    // ISO 6.4.2 Names
+    public static inline function graphicToken(char: String): Bool {
+        return isGraphic(char) || char == backslash;
+    }
+
     // ISO 6.5 Processor character set
     public static function isChar(char: String): Bool {
         return isGraphic(char) 

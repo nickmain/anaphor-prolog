@@ -17,6 +17,18 @@ class LexerTests extends utest.Test {
 		return lexs;
 	}
 
+	function testCut() {
+		Assert.equals(name("!"), lexemes(" ! whatever")[0].token);
+	}
+
+	function testLineEndComments() {
+		Assert.fail("unimplemented");	
+	}
+
+	function testBlockComments() {
+		Assert.fail("unimplemented");	
+	}
+
 	function testStrings() {
 		Assert.equals(openList, lexemes("foo")[0].token);
 		//Assert.fail("unimplemented");	
