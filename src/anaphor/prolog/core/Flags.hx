@@ -4,8 +4,19 @@
 package anaphor.prolog.core;
 using haxe.EnumTools;
 
+// ISO 7.11.2.5 How to read double quoted strings
+enum DoubleQuotes {
+    chars;  // each char as an atom
+    codes;  // numerical codes
+    atom;   // as a single atom
+}
+
 // ISO 7.11 Flags
 class Flags {
+
+    public var doubleQuotes = DoubleQuotes.codes;
+
+    public function new() {}
 
     public static final flagNames = [
         "bounded",

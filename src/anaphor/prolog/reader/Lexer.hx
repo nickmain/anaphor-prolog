@@ -4,6 +4,7 @@
 package anaphor.prolog.reader;
 
 import haxe.io.Input;
+import anaphor.prolog.core.Flags;
 
 enum Token {
     string(value: String);
@@ -44,14 +45,16 @@ private enum LexerState {
 
 class Lexer {
 
+    final input: Input;
+    final flags: Flags;
     var lineNum = 0;
     var index = 0;
     var line = "";
-    var input: Input;
     var state = LexerState.ready;
     
-    public function new(input: Input) {
+    public function new(input: Input, flags: Flags) {
         this.input = input;
+        this.flags = flags;
     }
 
     // Read the next token.
