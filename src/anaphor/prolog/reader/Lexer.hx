@@ -5,8 +5,6 @@ package anaphor.prolog.reader;
 
 import haxe.io.Input;
 
-typedef Lexeme = { token: Token, line: Int, start: Int, end: Int }
-
 enum Token {
     string(value: String);
     integer(value: Int);
@@ -21,8 +19,13 @@ enum Token {
     closeList;
     headTailSeparator;
     comma;
-    endTerm;
-    
+    endTerm;    
+}
+
+typedef TokenPosition = { line: Int, start: Int, end: Int };
+
+enum LexerResult {
+    token(token: Token, pos: TokenPosition);
 	finished;
     problem(problem: LexerProblem);
 }
@@ -37,12 +40,6 @@ private enum LexerState {
     ready;     // ready to proceed
     finished;  // no more tokens in input
     problem(problem: LexerProblem); // stop - problem was encountered
-}
-
-private enum TokenType {
-    letterDigitToken;
-    graphicToken;
-    quotedToken;
 }
 
 class Lexer {
@@ -60,40 +57,102 @@ class Lexer {
     // Read the next token.
     // Return "finished" if there are no more tokens in the input.
     // Return "problem(..)" if any problem is or was previously encountered.
-    public function read(): Lexeme {
-        if(! state.match(ready)) return stateLexeme();
+    public function read(): LexerResult {
+        if(! state.match(ready)) return stateResult();
 
         consumeWhitespace();
-        if(! state.match(ready)) return stateLexeme();
+        if(! state.match(ready)) return stateResult();
 
-        return gatherToken();
+        return readToken();
     }
 
-    // Gather the next token and leave index pointing at the next char
+    // Read the next token and leave index pointing at the next char
     // after it
-    function gatherToken(): Lexeme {
+    function readToken(): LexerResult {
         final char = line.charAt(index);
 
-        if(char == Char.semicolon) return lexeme(name(Char.semicolon));
-        if(char == Char.cut) return lexeme(name(Char.cut));
+        if(char == Char.open      ) return token(openParen);
+        if(char == Char.close     ) return token(closeParen);
+        if(char == Char.openCurly ) return token(openCurly);
+        if(char == Char.closeCurly) return token(closeCurly);
+        if(char == Char.openList  ) return token(openList);
+        if(char == Char.closeList ) return token(closeList);
+        if(char == Char.comma     ) return token(comma);
+        if(char == Char.headTailSeparator) return token(headTailSeparator);
 
-        return lexeme(name("poop"), index, index);
+        if(char == Char.end) {
+            final next = line.charAt(index + 1);
+            if(next == "" || next == Char.endLineComment || Char.isLayout(next)) {
+                // period followed by whitespace or comment is term-end
+                return token(endTerm);
+            }
+            else {
+                return graphicToken();
+            }
+        }
+
+        // ISO 6.4.2 Names
+        if(char == Char.semicolon) return token(name(Char.semicolon));
+        if(char == Char.cut) return token(name(Char.cut));
+        if(Char.isSmallLetter(char)) return letterDigitToken();
+        if(Char.isGraphicToken(char)) return graphicToken();
+        //TODO: quoted token
+
+        // ISO 6.4.3 Variables
+        if(char == Char.underscore || Char.isCapitalLetter(char)) return variableToken();
+
+        // ISO 6.4.4 Integer numbers
+
+        // ISO 6.4.5 Floating point numbers
+
+        // ISO 6.4.6 Doubled quoted lists, aka Strings
+
+        // ISO 6.4.7 Back quoted strings
+
+        return finished;
     }
 
-    // Make a lexeme from current state
-    function lexeme(token: Token, start: Int = - 1, end: Int = -1): Lexeme { 
-        if(start < 0) start = index;
-        if(end < 0) end = index;       
-        final lex: Lexeme = { token: token, line: lineNum, start: start, end: end };
-        index = end + 1;
-        return lex;
+    function variableToken(): LexerResult {
+        final start = index++;
+
+        while(Char.isAlphanumeric(line.charAt(index))) index++;
+        // index is now at non-alpha char or EOL
+
+        return token(variable(line.substring(start, index)), start+1, index);
     }
 
-    // Make a lexeme for finished or problem state
-    function stateLexeme(): Lexeme {
+    function letterDigitToken(): LexerResult {
+        final start = index++;
+
+        while(Char.isAlphanumeric(line.charAt(index))) index++;
+        // index is now at non-alpha char or EOL
+
+        return token(name(line.substring(start, index)), start+1, index);
+    }
+
+    function graphicToken(): LexerResult {
+        final start = index++;
+
+        while(Char.isGraphicToken(line.charAt(index))) index++;
+        // index is now at non-graphic char or EOL
+
+        return token(name(line.substring(start, index)), start+1, index);        
+    }
+
+    // Make a token result from current state
+    function token(token: Token, start: Int = - 1, end: Int = -1): LexerResult { 
+        if(start < 0) start = index+1;
+        if(end < 0) end = index+1;
+        final result = LexerResult.token(token, {line: lineNum, start: start, end: end});
+        index = end;  // index is zero-based, end is 1-based
+        return result;
+    }
+
+    // Make a result for finished or problem state
+    function stateResult(): LexerResult {
         switch(state) {
-            case problem(p): return { token: problem(p), line: lineNum, start: index, end: index };
-            default: return { token: finished, line: lineNum, start: index, end: index };
+            case problem(p): return problem(p);
+            default: return finished;
         }
     }
     

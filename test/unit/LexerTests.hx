@@ -4,26 +4,74 @@
 package unit;
 import utest.Assert;
 import anaphor.prolog.reader.Lexer;
-import anaphor.prolog.reader.Lexer.Lexeme;
+import anaphor.prolog.reader.Lexer.LexerResult;
 import anaphor.prolog.reader.Lexer.Token;
 import haxe.io.StringInput;
 using haxe.EnumTools.EnumValueTools;
 
+// Expected token to compare against
+private enum ExpectedToken {
+	token(token: Token);
+	posToken(token: Token, line: Int, start: Int, end: Int);
+}
+
 class LexerTests extends utest.Test {
 
-	function lexemes(s: String): Array<Lexeme> {
-		final lexer = new Lexer(new StringInput(s));
-		final lexs: Array<Lexeme> = [];
+	// tokenize the source string and compare against expected tokens
+	function check(src: String, expected: Array<ExpectedToken>) {
+		final lexer = new Lexer(new StringInput(src));
 
-		lexs.push(lexer.read());
-		return lexs;
+		for(ex in expected) {
+			switch(lexer.read()) {
+				case finished: { Assert.fail("finished before all expected tokens"); return; }
+				case problem(p): { Assert.fail(Std.string(p)); return; }
+				case token(tok, pos): {
+					switch(ex) {
+						case token(t): {
+							tokenEq(t, tok);
+						}
+						case posToken(t, line, start, end): {
+							tokenEq(t, tok);
+							Assert.equals(line, pos.line);
+							Assert.equals(start, pos.start);
+							Assert.equals(end, pos.end);
+						}
+					}	
+				}
+			}
+		}
+
+		switch(lexer.read()) {
+			case finished: { Assert.pass(); }
+			case problem(p): { Assert.fail(Std.string(p)); }
+			case token(_, pos): { Assert.fail("Extra token(s) at " + Std.string(pos)); }
+		}
 	}
 
+	function tokenEq(expected: Token, actual: Token) {
+		if(! expected.equals(actual)) {
+			Assert.fail("Expected token " + Std.string(expected) + " but got " + Std.string(actual));
+		}
+	}
+	
 	function testCut() {
-		Assert.isTrue(lexemes(" ! whatever")[0].token.match(Token.name("!")));
-		// TODO: build utils to match tokens 
+		check(" ! !what!ever", [
+			posToken(name("!"), 1, 2, 2),
+			posToken(name("!"), 1, 4, 4),
+			token(name("what")),
+			posToken(name("!"), 1, 9, 9),
+			token(name("ever"))
+		]);
 	}
-
+	
+	function testNames() {
+		Assert.fail("unimplemented");	
+	}
+	
+	function testPeriod() {
+		Assert.fail("unimplemented");	
+	}
+	
 	function testLineEndComments() {
 		Assert.fail("unimplemented");	
 	}
@@ -33,8 +81,7 @@ class LexerTests extends utest.Test {
 	}
 
 	function testStrings() {
-		Assert.equals(openList, lexemes("foo")[0].token);
-		//Assert.fail("unimplemented");	
+		Assert.fail("unimplemented");	
 	}
 
 	function testIntegers() {
@@ -49,15 +96,7 @@ class LexerTests extends utest.Test {
 		Assert.fail("unimplemented");	
 	}
 
-	function testNames() {
-		Assert.fail("unimplemented");	
-	}
-
 	function testWhitespace() {
-		Assert.fail("unimplemented");	
-	}
-
-	function testPeriod() {
 		Assert.fail("unimplemented");	
 	}
 
@@ -80,7 +119,4 @@ class LexerTests extends utest.Test {
 	function testExceptions() {
 		Assert.fail("unimplemented");	
 	}
-
-
-
 }

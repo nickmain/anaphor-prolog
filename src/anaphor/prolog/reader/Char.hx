@@ -11,9 +11,12 @@ class Char {
     public static inline final commentEnd = "*/";
 
     // ISO 6.4.2 Names
-    public static inline function graphicToken(char: String): Bool {
+    public static inline function isGraphicToken(char: String): Bool {
         return isGraphic(char) || char == backslash;
     }
+
+    // ISO 6.4.8 Other tokens
+    public static inline final end = ".";
 
     // ISO 6.5 Processor character set
     public static function isChar(char: String): Bool {
