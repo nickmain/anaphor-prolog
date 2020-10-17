@@ -5,7 +5,6 @@ package unit;
 import utest.Assert;
 import anaphor.prolog.core.Flags;
 import anaphor.prolog.reader.Lexer;
-import anaphor.prolog.reader.Lexer.LexerResult;
 import anaphor.prolog.reader.Lexer.Token;
 import haxe.io.StringInput;
 using haxe.EnumTools.EnumValueTools;
@@ -13,7 +12,7 @@ using haxe.EnumTools.EnumValueTools;
 // Expected token to compare against
 private enum ExpectedToken {
     token(token: Token);
-    posToken(token: Token, line: Int, start: Int, end: Int);
+    posToken(token: Token, line1: Int, col1: Int, line2: Int, col2: Int);
 }
 
 class LexerTests extends utest.Test {
@@ -23,20 +22,21 @@ class LexerTests extends utest.Test {
         if(flags == null) flags = new Flags();
         final lexer = new Lexer(new StringInput(src), flags);
 
-        for(ex in expected) {
+        for(expect in expected) {
             switch(lexer.read()) {
                 case finished: { Assert.fail("finished before all expected tokens"); return; }
                 case problem(p): { Assert.fail(Std.string(p)); return; }
-                case token(tok, pos): {
-                    switch(ex) {
+                case token(tok, span): {
+                    switch(expect) {
                         case token(t): {
                             tokenEq(t, tok);
                         }
-                        case posToken(t, line, start, end): {
+                        case posToken(t, line1, col1, line2, col2): {
                             tokenEq(t, tok);
-                            Assert.equals(line, pos.line);
-                            Assert.equals(start, pos.start);
-                            Assert.equals(end, pos.end);
+                            Assert.equals(line1, span.start.line);
+                            Assert.equals(col1, span.start.col);
+                            Assert.equals(line2, span.end.line);
+                            Assert.equals(col2, span.end.col);
                         }
                     }	
                 }
@@ -58,10 +58,10 @@ class LexerTests extends utest.Test {
     
     function testCut() {
         check(" ! !what!ever", [
-            posToken(name("!"), 1, 2, 2),
-            posToken(name("!"), 1, 4, 4),
+            posToken(name("!"), 1, 2, 1, 2),
+            posToken(name("!"), 1, 4, 1, 4),
             token(name("what")),
-            posToken(name("!"), 1, 9, 9),
+            posToken(name("!"), 1, 9, 1, 9),
             token(name("ever"))
         ]);
     }
@@ -70,7 +70,7 @@ class LexerTests extends utest.Test {
         Assert.fail("unimplemented");	
     }
     
-    function testPeriod() {
+    function testTermEnd() {
         Assert.fail("unimplemented");	
     }
     

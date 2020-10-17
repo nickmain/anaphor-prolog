@@ -5,29 +5,31 @@ package anaphor.prolog.reader;
 
 import haxe.io.Input;
 import anaphor.prolog.core.Flags;
+import anaphor.prolog.core.Flags.DoubleQuotes;
 
 enum Token {
-    string(value: String);
+    string(value: String, style: DoubleQuotes);
     integer(value: Int);
-    float(value: Float);   
-	variable(name: String);
+    float(value: Float);
+    variable(name: String);
     name(value: String);
-	openParen;
-	closeParen;
-	openCurly;
-	closeCurly;
-	openList;
+    openParen;
+    closeParen;
+    openCurly;
+    closeCurly;
+    openList;
     closeList;
     headTailSeparator;
     comma;
-    endTerm;    
+    endTerm;
 }
 
-typedef TokenPosition = { line: Int, start: Int, end: Int };
+typedef CharPosition = { line: Int, col: Int }
+typedef TokenSpan = { start: CharPosition, end: CharPosition };
 
 enum LexerResult {
-    token(token: Token, pos: TokenPosition);
-	finished;
+    token(token: Token, span: TokenSpan);
+    finished;
     problem(problem: LexerProblem);
 }
 
@@ -51,6 +53,7 @@ class Lexer {
     var index = 0;
     var line = "";
     var state = LexerState.ready;
+    var start: CharPosition = {line: 0, col: 0};
     
     public function new(input: Input, flags: Flags) {
         this.input = input;
@@ -73,21 +76,22 @@ class Lexer {
     // after it
     function readToken(): LexerResult {
         final char = line.charAt(index);
+        this.start = here();
 
-        if(char == Char.open      ) return token(openParen);
-        if(char == Char.close     ) return token(closeParen);
-        if(char == Char.openCurly ) return token(openCurly);
-        if(char == Char.closeCurly) return token(closeCurly);
-        if(char == Char.openList  ) return token(openList);
-        if(char == Char.closeList ) return token(closeList);
-        if(char == Char.comma     ) return token(comma);
-        if(char == Char.headTailSeparator) return token(headTailSeparator);
+        if(char == Char.open      ) return charToken(openParen);
+        if(char == Char.close     ) return charToken(closeParen);
+        if(char == Char.openCurly ) return charToken(openCurly);
+        if(char == Char.closeCurly) return charToken(closeCurly);
+        if(char == Char.openList  ) return charToken(openList);
+        if(char == Char.closeList ) return charToken(closeList);
+        if(char == Char.comma     ) return charToken(comma);
+        if(char == Char.headTailSeparator) return charToken(headTailSeparator);
 
         if(char == Char.end) {
             final next = line.charAt(index + 1);
             if(next == "" || next == Char.endLineComment || Char.isLayout(next)) {
                 // period followed by whitespace or comment is term-end
-                return token(endTerm);
+                return charToken(endTerm);
             }
             else {
                 return graphicToken();
@@ -95,11 +99,11 @@ class Lexer {
         }
 
         // ISO 6.4.2 Names
-        if(char == Char.semicolon) return token(name(Char.semicolon));
-        if(char == Char.cut) return token(name(Char.cut));
+        if(char == Char.semicolon) return charToken(name(Char.semicolon));
+        if(char == Char.cut) return charToken(name(Char.cut));
+        if(char == Char.singleQuote) return quotedAtom();
         if(Char.isSmallLetter(char)) return letterDigitToken();
         if(Char.isGraphicToken(char)) return graphicToken();
-        //TODO: quoted token
 
         // ISO 6.4.3 Variables
         if(char == Char.underscore || Char.isCapitalLetter(char)) return variableToken();
@@ -115,39 +119,47 @@ class Lexer {
         return finished;
     }
 
-    function variableToken(): LexerResult {
-        final start = index++;
+    function quotedAtom(): LexerResult {
+        this.start.col++; // skip the opening single quote
+
+        final buf = new StringBuf();  // since this can span lines
 
         while(Char.isAlphanumeric(line.charAt(index))) index++;
         // index is now at non-alpha char or EOL
 
-        return token(variable(line.substring(start, index)), start+1, index);
+        return token(name(capture()));
+    }
+
+    function variableToken(): LexerResult {
+        while(Char.isAlphanumeric(line.charAt(++index))) {}
+        return token(variable(capture()));
     }
 
     function letterDigitToken(): LexerResult {
-        final start = index++;
-
-        while(Char.isAlphanumeric(line.charAt(index))) index++;
-        // index is now at non-alpha char or EOL
-
-        return token(name(line.substring(start, index)), start+1, index);
+        while(Char.isAlphanumeric(line.charAt(++index))) {}
+        return token(name(capture()));
     }
 
     function graphicToken(): LexerResult {
-        final start = index++;
-
-        while(Char.isGraphicToken(line.charAt(index))) index++;
-        // index is now at non-graphic char or EOL
-
-        return token(name(line.substring(start, index)), start+1, index);        
+        while(Char.isGraphicToken(line.charAt(++index))) {}
+        return token(name(capture()));
     }
 
-    // Make a token result from current state
-    function token(token: Token, start: Int = - 1, end: Int = -1): LexerResult { 
-        if(start < 0) start = index+1;
-        if(end < 0) end = index+1;
-        final result = LexerResult.token(token, {line: lineNum, start: start, end: end});
-        index = end;  // index is zero-based, end is 1-based
+    // Make a token result from current state assuming index points
+    // at the next char after the token body
+    inline function token(token: Token, offset: Int = 0): LexerResult { 
+        return LexerResult.token(token, {start: start, end: here(offset)});
+    }
+
+    // capture the text from the start pos up to the index (exclusive)
+    inline function capture(): String {
+        return line.substring(start.col-1, index);
+    }
+
+    // Make a token result for a single char token and advance the index
+    inline function charToken(token: Token): LexerResult { 
+        final result = LexerResult.token(token, {start: start, end: start});
+        index++;
         return result;
     }
 
@@ -219,5 +231,10 @@ class Lexer {
         catch(e) {
             state = problem(exception(e));
         }
+    }
+
+    // Capture the curent line and index as a position
+    inline function here(offset: Int = 0): CharPosition {
+        return {line: this.lineNum, col: this.index + 1 + offset};
     }
 } 
