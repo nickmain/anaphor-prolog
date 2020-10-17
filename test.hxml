@@ -3,7 +3,8 @@
 --library utest
 --macro nullSafety("anaphor", Strict)
 --main unit.UnitTests
---python bin/unit_tests.py
+--interp
 
---next
---cmd "python3 bin/unit_tests.py"
+#--python bin/unit_tests.py
+#--next
+#--cmd "python3 bin/unit_tests.py"
