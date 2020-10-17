@@ -148,7 +148,7 @@ class Lexer {
     // Make a token result from current state assuming index points
     // at the next char after the token body
     inline function token(token: Token, offset: Int = 0): LexerResult { 
-        return LexerResult.token(token, {start: start, end: here(offset)});
+        return LexerResult.token(token, {start: start, end: here(-1)});
     }
 
     // capture the text from the start pos up to the index (exclusive)

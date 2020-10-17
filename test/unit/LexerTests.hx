@@ -71,7 +71,18 @@ class LexerTests extends utest.Test {
     }
     
     function testTermEnd() {
-        Assert.fail("unimplemented");	
+        //     123456789.123456789.123  12345678
+        check(" foo. bar.bat .%comment\n.=hello.", [
+            token(name("foo")),
+            posToken(endTerm, 1, 5, 1, 5),
+            token(name("bar")),
+            posToken(name("."), 1, 10, 1, 10),
+            token(name("bat")),
+            posToken(endTerm, 1, 15, 1, 15),
+            posToken(name(".="), 2, 1, 2, 2),
+            token(name("hello")),
+            posToken(endTerm, 2, 8, 2, 8)
+        ]);
     }
     
     function testLineEndComments() {
@@ -95,7 +106,15 @@ class LexerTests extends utest.Test {
     }
 
     function testVariables() {
-        Assert.fail("unimplemented");	
+        check(" foo Foo _foo _= _.", [
+            token(name("foo")),
+            token(variable("Foo")),
+            token(variable("_foo")),
+            token(variable("_")),
+            token(name("=")),
+            token(variable("_")),
+            token(endTerm)
+        ]);
     }
 
     function testWhitespace() {
