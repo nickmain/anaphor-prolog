@@ -2,7 +2,25 @@
 // Licensed under the MIT License, see LICENSE file for details.
 
 package anaphor.prolog.core;
-using haxe.EnumTools;
+
+// ISO 7.11.2.1 Character Conversion
+enum CharConversion {
+    on;  // ISO default
+    off;
+}
+
+// ISO 7.11.2.2 Implementation defined debug mode
+enum Debug {
+    on;
+    off;  // ISO default
+}
+
+// ISO 7.11.2.4 Effect of attempting to call an unknown predicate
+enum Unknown {
+    error;  // ISO default
+    fail;
+    warning;
+}
 
 // ISO 7.11.2.5 How to read double quoted strings
 enum DoubleQuotes {
@@ -14,6 +32,9 @@ enum DoubleQuotes {
 // ISO 7.11 Flags
 class Flags {
 
+    public var charConversion = CharConversion.on;
+    public var debug = Debug.off;
+    public var unknown = Unknown.error;
     public var doubleQuotes = DoubleQuotes.codes;
 
     public function new() {}
@@ -29,6 +50,4 @@ class Flags {
         "unknown",
         "double_quotes"
     ];
-    
-
 }
