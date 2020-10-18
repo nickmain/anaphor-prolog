@@ -6,7 +6,7 @@ package unit;
 class UnitTests {
     public static function main() {
         utest.UTest.run([
-            new unit.TestCase(), 
+            new unit.ATestCase(), 
             new unit.LexerTests()
         ]);   
     }
