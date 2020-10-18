@@ -3,6 +3,7 @@
 
 package anaphor.prolog.reader;
 
+import anaphor.prolog.reader.CharConversionTable.CharConverter;
 import haxe.io.Input;
 import anaphor.prolog.core.Flags;
 import anaphor.prolog.core.Flags.DoubleQuotes;
@@ -21,21 +22,21 @@ enum Token {
     closeList;
     headTailSeparator;
     comma;
+    layout;
     endTerm;
 }
 
 typedef CharPosition = { line: Int, col: Int }
-typedef TokenSpan = { start: CharPosition, end: CharPosition };
 
 enum LexerResult {
-    token(token: Token, span: TokenSpan);
+    token(token: Token, pos: CharPosition);
     finished;
     problem(problem: LexerProblem);
 }
 
 enum LexerProblem {
     exception(ex: haxe.Exception);
-    unterminatedBlockComment;
+    unterminatedBlockComment(start: CharPosition);
     unknown(msg: String);
 }
 
@@ -46,37 +47,37 @@ private enum LexerState {
 }
 
 class Lexer {
+    public var doubleQuoteFlag = DoubleQuotes.codes;
+    public var charConversion = false;
+    public var charConvertor: Null<CharConverter>;
 
     final input: Input;
-    final flags: Flags;
     var lineNum = 0;
     var index = 0;
     var line = "";
     var state = LexerState.ready;
     var start: CharPosition = {line: 0, col: 0};
     
-    public function new(input: Input, flags: Flags) {
+    public function new(input: Input) {
         this.input = input;
-        this.flags = flags;
     }
 
     // Read the next token.
+    // Return a final layout token at EOF if there is no trailing whitespace.
     // Return "finished" if there are no more tokens in the input.
     // Return "problem(..)" if any problem is or was previously encountered.
     public function read(): LexerResult {
         if(! state.match(ready)) return stateResult();
 
+        this.start = here();
+
         consumeWhitespace();
+        if(state.match(finished) || ! stillHere(start)) {
+            return token(layout);
+        }
         if(! state.match(ready)) return stateResult();
 
-        return readToken();
-    }
-
-    // Read the next token and leave index pointing at the next char
-    // after it
-    function readToken(): LexerResult {
         final char = line.charAt(index);
-        this.start = here();
 
         if(char == Char.open      ) return charToken(openParen);
         if(char == Char.close     ) return charToken(closeParen);
@@ -145,10 +146,9 @@ class Lexer {
         return token(name(capture()));
     }
 
-    // Make a token result from current state assuming index points
-    // at the next char after the token body
-    inline function token(token: Token, offset: Int = 0): LexerResult { 
-        return LexerResult.token(token, {start: start, end: here(-1)});
+    // Make a token result from current state
+    inline function token(token: Token): LexerResult { 
+        return LexerResult.token(token, start);
     }
 
     // capture the text from the start pos up to the index (exclusive)
@@ -158,7 +158,7 @@ class Lexer {
 
     // Make a token result for a single char token and advance the index
     inline function charToken(token: Token): LexerResult { 
-        final result = LexerResult.token(token, {start: start, end: start});
+        final result = LexerResult.token(token, start);
         index++;
         return result;
     }
@@ -172,7 +172,8 @@ class Lexer {
     }
     
     // Consume whitespace and comments.
-    // On return index points at char after whitespace
+    // On return index points at char after whitespace.
+    // Return false if nothing was consumed.
     function consumeWhitespace() {
         while(state.match(ready)) {
             // consume whitespace until non-ws or end of line
@@ -185,7 +186,6 @@ class Lexer {
             if(char.length > 0) {
                 // start of block comment
                 if(char == Char.comment1 && line.charAt(index+1) == Char.comment2) {
-                    index += 2; // first char after "/*"
                     consumeBlockComment();
                     continue;
                 }
@@ -203,26 +203,28 @@ class Lexer {
     // Consume block comment.
     // On return index points at char after closing "*/"
     function consumeBlockComment() {
+        final commentStart = here();
+        index += 2; // first char after "/*"
+
         while(state.match(ready)) {
             final end = line.indexOf(Char.commentEnd, index);
             if(end >= 0) {
                 index += Char.commentEnd.length;
-                state = ready;
                 return;
             }
 
             readNextLine();
             if(state.match(finished)) {
-                state = problem(unterminatedBlockComment);
+                state = problem(unterminatedBlockComment(commentStart));
             }
         }
     }
 
     function readNextLine() {
-        index = 0;
         try {
             line = input.readLine();
             lineNum++;
+            index = 0;
             state = ready;
         } 
         catch(_: haxe.io.Eof) {
@@ -236,5 +238,10 @@ class Lexer {
     // Capture the curent line and index as a position
     inline function here(offset: Int = 0): CharPosition {
         return {line: this.lineNum, col: this.index + 1 + offset};
+    }
+
+    // Return true if current position is still the same as the given one
+    inline function stillHere(pos: CharPosition): Bool {
+        return this.lineNum == pos.line && this.index == pos.col - 1;
     }
 } 

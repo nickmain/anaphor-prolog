@@ -3,7 +3,6 @@
 
 package unit;
 import utest.Assert;
-import anaphor.prolog.core.Flags;
 import anaphor.prolog.reader.Lexer;
 import anaphor.prolog.reader.Lexer.Token;
 import haxe.io.StringInput;
@@ -12,31 +11,28 @@ using haxe.EnumTools.EnumValueTools;
 // Expected token to compare against
 private enum ExpectedToken {
     token(token: Token);
-    posToken(token: Token, line1: Int, col1: Int, line2: Int, col2: Int);
+    posToken(token: Token, line: Int, col: Int);
 }
 
 class LexerTests extends utest.Test {
 
     // tokenize the source string and compare against expected tokens
-    function check(src: String, expected: Array<ExpectedToken>, ?flags: Flags) {
-        if(flags == null) flags = new Flags();
-        final lexer = new Lexer(new StringInput(src), flags);
+    function check(src: String, expected: Array<ExpectedToken>) {
+        final lexer = new Lexer(new StringInput(src));
 
         for(expect in expected) {
             switch(lexer.read()) {
                 case finished: { Assert.fail("finished before all expected tokens"); return; }
                 case problem(p): { Assert.fail(Std.string(p)); return; }
-                case token(tok, span): {
+                case token(tok, pos): {
                     switch(expect) {
                         case token(t): {
                             tokenEq(t, tok);
                         }
-                        case posToken(t, line1, col1, line2, col2): {
+                        case posToken(t, line, col): {
                             tokenEq(t, tok);
-                            Assert.equals(line1, span.start.line);
-                            Assert.equals(col1, span.start.col);
-                            Assert.equals(line2, span.end.line);
-                            Assert.equals(col2, span.end.col);
+                            Assert.equals(line, pos.line);
+                            Assert.equals(col, pos.col);
                         }
                     }	
                 }
@@ -57,12 +53,16 @@ class LexerTests extends utest.Test {
     }
     
     function testCut() {
+        //     123456789.1234
         check(" ! !what!ever", [
-            posToken(name("!"), 1, 2, 1, 2),
-            posToken(name("!"), 1, 4, 1, 4),
+            token(layout),
+            posToken(name("!"), 1, 2),
+            token(layout),
+            posToken(name("!"), 1, 4),
             token(name("what")),
-            posToken(name("!"), 1, 9, 1, 9),
-            token(name("ever"))
+            posToken(name("!"), 1, 9),
+            token(name("ever")),
+            token(layout)
         ]);
     }
     
@@ -73,15 +73,20 @@ class LexerTests extends utest.Test {
     function testTermEnd() {
         //     123456789.123456789.123  12345678
         check(" foo. bar.bat .%comment\n.=hello.", [
+            token(layout),
             token(name("foo")),
-            posToken(endTerm, 1, 5, 1, 5),
+            posToken(endTerm, 1, 5),
+            token(layout),
             token(name("bar")),
-            posToken(name("."), 1, 10, 1, 10),
+            posToken(name("."), 1, 10),
             token(name("bat")),
-            posToken(endTerm, 1, 15, 1, 15),
-            posToken(name(".="), 2, 1, 2, 2),
+            token(layout),
+            posToken(endTerm, 1, 15),
+            token(layout),
+            posToken(name(".="), 2, 1),
             token(name("hello")),
-            posToken(endTerm, 2, 8, 2, 8)
+            posToken(endTerm, 2, 8),
+            token(layout)
         ]);
     }
     
@@ -107,13 +112,19 @@ class LexerTests extends utest.Test {
 
     function testVariables() {
         check(" foo Foo _foo _= _.", [
+            token(layout),
             token(name("foo")),
+            token(layout),
             token(variable("Foo")),
+            token(layout),
             token(variable("_foo")),
+            token(layout),
             token(variable("_")),
             token(name("=")),
+            token(layout),
             token(variable("_")),
-            token(endTerm)
+            token(endTerm),
+            token(layout)
         ]);
     }
 
