@@ -15,6 +15,24 @@ class Char {
         return isGraphic(char) || char == backslash;
     }
 
+    // ISO 6.4.2.1 Quoted characters
+
+    public static inline final symbolicAlert          = "a";
+    public static inline final symbolicBackspace      = "b";
+    public static inline final symbolicCarriageReturn = "r";
+    public static inline final symbolicFormFeed       = "f";
+    public static inline final symbolicHorizontalTab  = "t";
+    public static inline final symbolicNewLine        = "n";
+    public static inline final symbolicVerticalTab    = "v";
+
+    public static inline final actualAlert          = "\x07";
+    public static inline final actualBackspace      = "\x08";
+    public static inline final actualCarriageReturn = "\r";
+    public static inline final actualFormFeed       = "\x0C";
+    public static inline final actualHorizontalTab  = "\t";
+    public static inline final actualNewLine        = "\n";
+    public static inline final actualVerticalTab    = "\x0B";
+
     // ISO 6.4.8 Other tokens
     public static inline final end = ".";
 
