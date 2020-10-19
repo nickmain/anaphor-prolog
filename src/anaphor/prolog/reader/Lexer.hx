@@ -41,6 +41,7 @@ enum LexerProblem {
     badHexValue(start: CharPosition);
     badBinaryValue(start: CharPosition);
     badOctalValue(start: CharPosition);
+    badFloatValue(start: CharPosition);
     unknown(msg: String);
 }
 
@@ -139,18 +140,17 @@ class Lexer {
         }
 
         while(Char.isDecimalDigit(line.charAt(++index))) {}
-        final next = line.charAt(index);
-        if(next == Char.decimalPoint || Char.isExponent(next)) {
-            return readFloatingPoint();
-        }
+
+        // float nums are extensions of integers
+        final floatNum = readFloatingPoint();
+        if(floatNum != null) return floatNum;
 
         final value = Std.parseInt(capture());
         if(value != null) {
             return token(integer(value));
         }
-        else {
-            return oops(badIntegerValue(start));
-        }
+
+        return oops(badIntegerValue(start));
     }
 
     function readHexConstant(): LexerResult {
@@ -161,14 +161,39 @@ class Lexer {
         if(value != null) {
             return token(integer(value));
         }
-        else {
-            return oops(badHexValue(start));
-        }
+
+        return oops(badHexValue(start));
     }
 
-    function readFloatingPoint(): LexerResult {
-        // TODO:
-        return finished;
+    function readFloatingPoint(): Null<LexerResult> {
+        // According to ISO floats must have a fractional part before any exponent
+        final point = line.charAt(index);
+        final digit = line.charAt(index+1);
+        if(point != Char.decimalPoint || ! Char.isDecimalDigit(digit)) return null;
+
+        index++; // skip the point
+        while(Char.isDecimalDigit(line.charAt(++index))) {}
+
+        final exponent = line.charAt(index);
+        if(Char.isExponent(exponent)) {
+            index++; // skip the E
+
+            // skip any sign
+            final sign = line.charAt(index);
+            if(sign == Char.positiveSign || sign == Char.negativeSign) index++;
+
+            final expDigit = line.charAt(index);
+            if( ! Char.isDecimalDigit(expDigit)) return oops(badFloatValue(start));
+
+            while(Char.isDecimalDigit(line.charAt(++index))) {}
+        }
+
+        final value = Std.parseFloat(capture()); // this handles hex
+        if(value != null) {
+            return token(float(value));
+        }
+
+        return oops(badFloatValue(start));
     }
 
     function readBinaryConstant(): LexerResult {

@@ -51,6 +51,17 @@ class LexerTests extends utest.Test {
         }
     }
 
+    // tokenize the source string and compare against single expected token
+    function check1(src: String, expected: Token) {
+        final lexer = new Lexer(new StringInput(src));
+
+        switch(lexer.read()) {
+            case finished: { Assert.fail("finished before expected token"); return; }
+            case problem(p): { Assert.fail(Std.string(p)); return; }
+            case token(tok, _): tokenEq(expected, tok);
+        }
+    }
+
     function read(src: String): LexerResult {
         final lexer = new Lexer(new StringInput(src));
         return lexer.read();
@@ -87,10 +98,31 @@ class LexerTests extends utest.Test {
         check("10x"  , [posToken(integer(10), 1, 1), token(name("x")), token(layout)]);
     }
 
+    function testFloatingPoint() {
+        check1("0.0 ", float(0));
+        check1("0.1 ", float(0.1));
+        check1("0010.0001 ", float(10.0001));
+        check1("10.0e2 ", float(1000));
+        check1("10.0e+2 ", float(1000));
+        check1("9.0e-2 ", float(0.09));
+        check1("9.0e-02 ", float(0.09));
+        
+        check("1.e2", [token(integer(1)), token(name(".")), token(name("e2")), token(layout)]);
+        check("1e2",  [token(integer(1)), token(name("e2")), token(layout)]);
+
+        switch(read("1.0ee")) {
+            case problem(badFloatValue({line: line, col: col})): {
+                Assert.equals(1, line);
+                Assert.equals(1, col);
+            }
+            default: Assert.fail("Expected badFloatValue");
+        }
+    }
+
     function testHexadecimal() {
-        check("0x123 ", [posToken(integer(0x123), 1, 1), token(layout)]);
-        check("0xaA9 ", [posToken(integer(0xaa9), 1, 1), token(layout)]);
-        check("0x0"   , [posToken(integer(0), 1, 1), token(layout)]);
+        check1("0x123 ", integer(0x123));
+        check1("0xaA9 ", integer(0xaa9));
+        check1("0x0"   , integer(0));
         check("0xcafezoo", [posToken(integer(0xcafe), 1, 1), token(name("zoo")), token(layout)]);
         
         switch(read("0x")) {
@@ -103,9 +135,9 @@ class LexerTests extends utest.Test {
     }
 
     function testOctal() {
-        check("0o123 ", [posToken(integer(83), 1, 1), token(layout)]);
-        check("0o003 ", [posToken(integer(3), 1, 1), token(layout)]);
-        check("0o0"   , [posToken(integer(0), 1, 1), token(layout)]);
+        check1("0o123 ", integer(83));
+        check1("0o003 ", integer(3));
+        check1("0o0"   , integer(0));
         check("0o1234zoo", [posToken(integer(668), 1, 1), token(name("zoo")), token(layout)]);
         
         switch(read("0o8")) {
@@ -118,9 +150,9 @@ class LexerTests extends utest.Test {
     }
 
     function testBinary() {
-        check("0b011 ", [posToken(integer(3), 1, 1), token(layout)]);
-        check("0b11000111111111011101100 ", [posToken(integer(6553324), 1, 1), token(layout)]);
-        check("0b0"    , [posToken(integer(0), 1, 1), token(layout)]);
+        check1("0b011 ", integer(3));
+        check1("0b0"   , integer(0));
+        check1("0b11000111111111011101100 ", integer(6553324));
         check("0b10123", [posToken(integer(5), 1, 1), token(integer(23)), token(layout)]);
         
         switch(read("0b2")) {
@@ -169,11 +201,6 @@ class LexerTests extends utest.Test {
     }
 
     function testStrings() {
-        Assert.fail("unimplemented");	
-    }
-
-
-    function testFloats() {
         Assert.fail("unimplemented");	
     }
 
