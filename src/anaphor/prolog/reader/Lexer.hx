@@ -37,6 +37,10 @@ enum LexerResult {
 enum LexerProblem {
     exception(ex: haxe.Exception);
     unterminatedBlockComment(start: CharPosition);
+    badIntegerValue(start: CharPosition);
+    badHexValue(start: CharPosition);
+    badBinaryValue(start: CharPosition);
+    badOctalValue(start: CharPosition);
     unknown(msg: String);
 }
 
@@ -56,10 +60,16 @@ class Lexer {
     var index = 0;
     var line = "";
     var state = LexerState.ready;
-    var start: CharPosition = {line: 0, col: 0};
+    var start: CharPosition = {line: 1, col: 1};
     
     public function new(input: Input) {
         this.input = input;
+
+        // initialize
+        readNextLine();
+        if(state.match(finished)) {
+            state = ready; // in order to read the layout token
+        }
     }
 
     // Read the next token.
@@ -109,14 +119,112 @@ class Lexer {
         // ISO 6.4.3 Variables
         if(char == Char.underscore || Char.isCapitalLetter(char)) return variableToken();
 
-        // ISO 6.4.4 Integer numbers
-
-        // ISO 6.4.5 Floating point numbers
+        // ISO 6.4.4/5 Integer and floating point numbers
+        if(Char.isDecimalDigit(char)) return readNumber(char);
 
         // ISO 6.4.6 Doubled quoted lists, aka Strings
 
         // ISO 6.4.7 Back quoted strings
 
+        return finished;
+    }
+
+    function readNumber(char: String): LexerResult {
+        if(char == "0") {
+            final next = line.charAt(index + 1);
+            if(next == Char.binaryConstantIndicator) return readBinaryConstant();
+            if(next == Char.octalConstantIndicator) return readOctalConstant();
+            if(next == Char.hexadecimalConstantIndicator) return readHexConstant();
+            if(next == Char.singleQuote) return readCharCodeConstant();
+        }
+
+        while(Char.isDecimalDigit(line.charAt(++index))) {}
+        final next = line.charAt(index);
+        if(next == Char.decimalPoint || Char.isExponent(next)) {
+            return readFloatingPoint();
+        }
+
+        final value = Std.parseInt(capture());
+        if(value != null) {
+            return token(integer(value));
+        }
+        else {
+            return oops(badIntegerValue(start));
+        }
+    }
+
+    function readHexConstant(): LexerResult {
+        index++; //skip to the "x"
+        while(Char.isHexadecimalDigit(line.charAt(++index))) {}
+
+        final value = Std.parseInt(capture()); // this handles hex
+        if(value != null) {
+            return token(integer(value));
+        }
+        else {
+            return oops(badHexValue(start));
+        }
+    }
+
+    function readFloatingPoint(): LexerResult {
+        // TODO:
+        return finished;
+    }
+
+    function readBinaryConstant(): LexerResult {
+        index++; //skip to the "b"
+        while(Char.isBinaryDigit(line.charAt(++index))) {}
+
+        var digitString = capture();
+        if(digitString.length < 3) return oops(badBinaryValue(start));
+        var digits = digitString.substring(2).split("");  //drop the prefix and split into digits
+        digits.reverse();
+
+        // make value by processing each digit
+        var value = 0;
+        var power = 1;
+        for(digit in digits) {
+            if(digit == "1") {
+                value += power;
+            }
+
+            power *= 2;
+        }
+
+        return token(integer(value));
+    }
+
+    function readOctalConstant(): LexerResult {
+        index++; //skip to the "o"
+        while(Char.isOctalDigit(line.charAt(++index))) {}
+
+        var digitString = capture();
+        if(digitString.length < 3) return oops(badOctalValue(start));
+        var digits = digitString.substring(2).split("");  //drop the prefix and split into digits
+        digits.reverse();
+
+        // make value by processing each digit
+        var value = 0;
+        var power = 1;
+        for(digit in digits) {
+            if(digit != "0") {
+                final digitValue = Std.parseInt(digit);
+                if(digitValue != null) {
+                    value += digitValue * power;
+                }
+                else {
+                    return oops(badOctalValue(start));
+                }                
+            }
+
+            power *= 8;
+        }
+
+        return token(integer(value));
+    }
+
+    function readCharCodeConstant(): LexerResult {
+        // TODO:
         return finished;
     }
 
@@ -171,6 +279,12 @@ class Lexer {
         }
     }
     
+    // Set state and return problem
+    inline function oops(p: LexerProblem): LexerResult {
+        state = problem(p);
+        return problem(p);
+    }
+
     // Consume whitespace and comments.
     // On return index points at char after whitespace.
     // Return false if nothing was consumed.

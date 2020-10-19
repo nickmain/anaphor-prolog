@@ -15,6 +15,19 @@ class Char {
         return isGraphic(char) || char == backslash;
     }
 
+    // ISO 6.4.4 Integer numbers
+    public static inline final binaryConstantIndicator = "b";
+    public static inline final octalConstantIndicator = "o";
+    public static inline final hexadecimalConstantIndicator = "x";
+
+    // ISO 6.4.5 Floating point numbers
+    public static inline final positiveSign = "+";
+    public static inline final negativeSign = "-";
+    public static inline final decimalPoint = ".";
+    public static inline function isExponent(char: String): Bool {
+        return char == "e" || char == "E";
+    }
+
     // ISO 6.4.2.1 Quoted characters
 
     public static inline final symbolicAlert          = "a";

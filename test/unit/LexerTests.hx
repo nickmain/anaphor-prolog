@@ -17,6 +17,11 @@ private enum ExpectedToken {
 class LexerTests extends utest.Test {
 
     // tokenize the source string and compare against expected tokens
+    function checkTokens(src: String, expected: Array<Token>) {
+        check(src, expected.map((t) -> token(t)));
+    }
+
+    // tokenize the source string and compare against expected tokens
     function check(src: String, expected: Array<ExpectedToken>) {
         final lexer = new Lexer(new StringInput(src));
 
@@ -46,12 +51,21 @@ class LexerTests extends utest.Test {
         }
     }
 
+    function read(src: String): LexerResult {
+        final lexer = new Lexer(new StringInput(src));
+        return lexer.read();
+    }
+
     function tokenEq(expected: Token, actual: Token) {
         if(! expected.equals(actual)) {
             Assert.fail("Expected token " + Std.string(expected) + " but got " + Std.string(actual));
         }
     }
     
+    function testEmpty() {
+        check("", [token(layout)]);
+    }
+
     function testCut() {
         //     123456789.1234
         check(" ! !what!ever", [
@@ -64,6 +78,62 @@ class LexerTests extends utest.Test {
             token(name("ever")),
             token(layout)
         ]);
+    }
+
+    function testIntegers() {
+        check(" 123 ", [token(layout), posToken(integer(123), 1, 2), token(layout)]);
+        check(" 003 ", [token(layout), posToken(integer(3), 1, 2), token(layout)]);
+        check("45"   , [token(integer(45)), token(layout)]);
+        check("10x"  , [posToken(integer(10), 1, 1), token(name("x")), token(layout)]);
+    }
+
+    function testHexadecimal() {
+        check("0x123 ", [posToken(integer(0x123), 1, 1), token(layout)]);
+        check("0xaA9 ", [posToken(integer(0xaa9), 1, 1), token(layout)]);
+        check("0x0"   , [posToken(integer(0), 1, 1), token(layout)]);
+        check("0xcafezoo", [posToken(integer(0xcafe), 1, 1), token(name("zoo")), token(layout)]);
+        
+        switch(read("0x")) {
+            case problem(badHexValue({line: line, col: col})): {
+                Assert.equals(1, line);
+                Assert.equals(1, col);
+            }
+            default: Assert.fail("Expected badHexValue");
+        }
+    }
+
+    function testOctal() {
+        check("0o123 ", [posToken(integer(83), 1, 1), token(layout)]);
+        check("0o003 ", [posToken(integer(3), 1, 1), token(layout)]);
+        check("0o0"   , [posToken(integer(0), 1, 1), token(layout)]);
+        check("0o1234zoo", [posToken(integer(668), 1, 1), token(name("zoo")), token(layout)]);
+        
+        switch(read("0o8")) {
+            case problem(badOctalValue({line: line, col: col})): {
+                Assert.equals(1, line);
+                Assert.equals(1, col);
+            }
+            default: Assert.fail("Expected badOctalValue");
+        }
+    }
+
+    function testBinary() {
+        check("0b011 ", [posToken(integer(3), 1, 1), token(layout)]);
+        check("0b11000111111111011101100 ", [posToken(integer(6553324), 1, 1), token(layout)]);
+        check("0b0"    , [posToken(integer(0), 1, 1), token(layout)]);
+        check("0b10123", [posToken(integer(5), 1, 1), token(integer(23)), token(layout)]);
+        
+        switch(read("0b2")) {
+            case problem(badBinaryValue({line: line, col: col})): {
+                Assert.equals(1, line);
+                Assert.equals(1, col);
+            }
+            default: Assert.fail("Expected badBinaryValue");
+        }
+    }
+
+    function testCharacterCodeLiteral() {
+        Assert.fail("unimplemented");	
     }
     
     function testNames() {
@@ -102,29 +172,15 @@ class LexerTests extends utest.Test {
         Assert.fail("unimplemented");	
     }
 
-    function testIntegers() {
-        Assert.fail("unimplemented");	
-    }
 
     function testFloats() {
         Assert.fail("unimplemented");	
     }
 
     function testVariables() {
-        check(" foo Foo _foo _= _.", [
-            token(layout),
-            token(name("foo")),
-            token(layout),
-            token(variable("Foo")),
-            token(layout),
-            token(variable("_foo")),
-            token(layout),
-            token(variable("_")),
-            token(name("=")),
-            token(layout),
-            token(variable("_")),
-            token(endTerm),
-            token(layout)
+        checkTokens(" foo Foo _foo _= _.", [
+            layout, name("foo"), layout, variable("Foo"), layout, variable("_foo"),
+            layout, variable("_"), name("="), layout, variable("_"), endTerm, layout
         ]);
     }
 
