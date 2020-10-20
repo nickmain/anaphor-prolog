@@ -42,6 +42,9 @@ enum LexerProblem {
     badBinaryValue(start: CharPosition);
     badOctalValue(start: CharPosition);
     badFloatValue(start: CharPosition);
+    badCharacterCodeLiteral(start: CharPosition);
+    badHexEscapeSequence(start: CharPosition);
+    badOctalEscapeSequence(start: CharPosition);
     unknown(msg: String);
 }
 
@@ -104,8 +107,7 @@ class Lexer {
             if(next == "" || next == Char.endLineComment || Char.isLayout(next)) {
                 // period followed by whitespace or comment is term-end
                 return charToken(endTerm);
-            }
-            else {
+            } else {
                 return graphicToken();
             }
         }
@@ -225,7 +227,17 @@ class Lexer {
 
         var digitString = capture();
         if(digitString.length < 3) return oops(badOctalValue(start));
-        var digits = digitString.substring(2).split("");  //drop the prefix and split into digits
+        digitString = digitString.substring(2);  //drop the prefix
+        final value = parseOctalNumber(digitString);
+        if(value != null) {
+            return token(integer(value));    
+        } else {
+            return oops(badOctalValue(start));
+        }
+    }
+
+    function parseOctalNumber(digitString: String): Null<Int> {
+        var digits = digitString.split("");
         digits.reverse();
 
         // make value by processing each digit
@@ -236,21 +248,130 @@ class Lexer {
                 final digitValue = Std.parseInt(digit);
                 if(digitValue != null) {
                     value += digitValue * power;
+                } else {
+                    return null;
                 }
-                else {
-                    return oops(badOctalValue(start));
-                }                
             }
 
             power *= 8;
         }
 
-        return token(integer(value));
+        return value;
     }
 
     function readCharCodeConstant(): LexerResult {
-        // TODO:
-        return finished;
+        index += 2; // skip over the "0'"
+        final sqc = readSingleQuotedChar();
+        if(! state.match(ready)) return stateResult();
+
+        if(sqc != null) {
+            final code = sqc.charCodeAt(0);
+            if(code != null) {
+                return token(integer(code));
+            }
+        }
+
+        return oops(badCharacterCodeLiteral(start));
+    }
+
+    // ISO 6.4.2.1 Quoted characters
+    function readSingleQuotedChar(): Null<String> {
+        final nqc = readNonQuoteChar();
+        if(! state.match(ready)) return null;
+        if(nqc != null) return nqc;
+
+        final c = line.charAt(index);
+        if(c == Char.doubleQuote) { index++; return c; }
+        if(c == Char.backQuote  ) { index++; return c; }
+        if(c == Char.singleQuote) { 
+            final next = line.charAt(index + 1);
+            if(next == Char.singleQuote) {
+                index += 2;
+                return Char.singleQuote;
+            }
+        }
+
+        return null;
+    }
+
+    function readNonQuoteChar(): Null<String> {
+        final c = line.charAt(index);
+        if(Char.isGraphic(c)) { index++; return c; }
+        if(Char.isAlphanumeric(c)) { index++; return c; }
+        if(Char.isSolo(c)) { index++; return c; }
+        if(c == Char.space) { index++; return c; }
+
+        if(c == Char.backslash) {
+            final next = line.charAt(index + 1);
+
+            // meta escape
+            if(Char.isMeta(next)) {
+                index += 2;
+                return next;
+            }
+
+            // control escapes
+            if(next == Char.symbolicAlert         ) { index += 2; return Char.actualAlert         ; } 
+            if(next == Char.symbolicBackspace     ) { index += 2; return Char.actualBackspace     ; } 
+            if(next == Char.symbolicCarriageReturn) { index += 2; return Char.actualCarriageReturn; } 
+            if(next == Char.symbolicFormFeed      ) { index += 2; return Char.actualFormFeed      ; } 
+            if(next == Char.symbolicHorizontalTab ) { index += 2; return Char.actualHorizontalTab ; } 
+            if(next == Char.symbolicNewLine       ) { index += 2; return Char.actualNewLine       ; } 
+            if(next == Char.symbolicVerticalTab   ) { index += 2; return Char.actualVerticalTab   ; } 
+
+            if(next == Char.symbolicHexadecimal) return readHexEscape();
+            if(Char.isOctalDigit(next)) return readOctalEscape();
+
+            state = problem(badCharacterCodeLiteral(start));
+            return null;
+        }
+
+        return null;
+    }
+
+    function readHexEscape(): Null<String> {
+        index++; // move to the "x"
+        final hexStart = index;
+        while(Char.isHexadecimalDigit(line.charAt(++index))) {}
+        
+        final backslash = line.charAt(index);
+        if(backslash != Char.backslash) {
+            state = problem(badHexEscapeSequence({line: start.line, col: hexStart}));
+            return null;
+        }
+
+        final hexString = "0" + line.substring(hexStart, index);
+        final hexValue = Std.parseInt(hexString);
+        if(hexValue != null) {
+            final char = String.fromCharCode(hexValue);
+            index++;
+            return char;    
+        }
+
+        state = problem(badHexEscapeSequence({line: start.line, col: hexStart}));
+        return null;
+    }
+
+    function readOctalEscape(): Null<String> {
+        final octalStart = index;
+        while(Char.isOctalDigit(line.charAt(++index))) {}
+        
+        final backslash = line.charAt(index);
+        if(backslash != Char.backslash) {
+            state = problem(badOctalEscapeSequence({line: start.line, col: octalStart+1}));
+            return null;
+        }
+
+        final octalString = line.substring(octalStart+1, index);
+        final octalValue = parseOctalNumber(octalString);
+        if(octalValue != null) {
+            final char = String.fromCharCode(octalValue);
+            index++;
+            return char;    
+        }
+
+        state = problem(badOctalEscapeSequence({line: start.line, col: octalStart+1}));
+        return null;
     }
 
     function quotedAtom(): LexerResult {
@@ -327,8 +448,7 @@ class Lexer {
                 if(char == Char.comment1 && line.charAt(index+1) == Char.comment2) {
                     consumeBlockComment();
                     continue;
-                }
-                else if(char != Char.endLineComment) {
+                } else if(char != Char.endLineComment) {
                     state = ready;
                     return;    
                 }

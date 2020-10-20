@@ -70,7 +70,8 @@ class LexerTests extends utest.Test {
     function tokenEq(expected: Token, actual: Token) {
         if(! expected.equals(actual)) {
             Assert.fail("Expected token " + Std.string(expected) + " but got " + Std.string(actual));
-        }
+        } 
+        else Assert.isTrue(true);
     }
     
     function testEmpty() {
@@ -108,6 +109,7 @@ class LexerTests extends utest.Test {
         check1("9.0e-02 ", float(0.09));
         
         check("1.e2", [token(integer(1)), token(name(".")), token(name("e2")), token(layout)]);
+        check("1. ", [token(integer(1)), token(endTerm), token(layout)]);
         check("1e2",  [token(integer(1)), token(name("e2")), token(layout)]);
 
         switch(read("1.0ee")) {
@@ -165,13 +167,74 @@ class LexerTests extends utest.Test {
     }
 
     function testCharacterCodeLiteral() {
-        Assert.fail("unimplemented");	
+        check1("0'A ", integer(65));
+        check1("0''' ", integer("'".code));
+        check1("0'\\' ", integer("'".code));
+        check1("0'\\\\ ", integer("\\".code));
+        check1("0'\\n ", integer("\n".code));
+        check1("0'\\40\\ ", integer(32));
+        check1("0'\\x0020\\ ", integer(32)); 
+
+        // space can be a char literal ?
+        check("0'  x", [posToken(integer(32), 1, 1), posToken(layout, 1, 4), token(name("x")), token(layout)]);
+        
+        switch(read("0'\\x0020 ")) {
+            case problem(badHexEscapeSequence({line: line, col: col})): {
+                Assert.equals(1, line);
+                Assert.equals(3, col);
+            }
+            default: Assert.fail("Expected badHexEscapeSequence");
+        }
+
+        switch(read("0'\\20 ")) {
+            case problem(badOctalEscapeSequence({line: line, col: col})): {
+                Assert.equals(1, line);
+                Assert.equals(3, col);
+            }
+            default: Assert.fail("Expected badOctalEscapeSequence");
+        }
+
+        switch(read("0'' ")) {
+            case problem(badCharacterCodeLiteral({line: line, col: col})): {
+                Assert.equals(1, line);
+                Assert.equals(1, col);
+            }
+            default: Assert.fail("Expected badCharacterCodeLiteral");
+        }
+
+        switch(read("0'\\8\\ ")) { // not octal
+            case problem(badCharacterCodeLiteral({line: line, col: col})): {
+                Assert.equals(1, line);
+                Assert.equals(1, col);
+            }
+            default: Assert.fail("Expected badCharacterCodeLiteral");
+        }
     }
     
     function testNames() {
         Assert.fail("unimplemented");	
     }
     
+    function testQuotedName() {
+        Assert.fail("unimplemented");	
+    }
+
+    function testMetaEscapes() {
+        Assert.fail("unimplemented");	
+    }
+
+    function testControlEscapes() {
+        Assert.fail("unimplemented");	
+    }
+
+    function testOctalEscapes() {
+        Assert.fail("unimplemented");	
+    }
+
+    function testHexEscapes() {
+        Assert.fail("unimplemented");	
+    }
+
     function testTermEnd() {
         //     123456789.123456789.123  12345678
         check(" foo. bar.bat .%comment\n.=hello.", [

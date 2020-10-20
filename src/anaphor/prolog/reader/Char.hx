@@ -29,6 +29,7 @@ class Char {
     }
 
     // ISO 6.4.2.1 Quoted characters
+    public static inline final symbolicHexadecimal = "x";
 
     public static inline final symbolicAlert          = "a";
     public static inline final symbolicBackspace      = "b";
