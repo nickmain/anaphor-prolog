@@ -219,10 +219,21 @@ class LexerTests extends utest.Test {
         check1("'' ", name(""));
         check1("'''' ", name("'"));
         check1("'\\'' ", name("'"));
+        check1("'\"foo bar\"' ", name("\"foo bar\""));
 
         check1("'hello\\n world \\x41\\' ", name("hello\n world A"));
 
-        switch(read("''' ")) {
+        // check that next token has correct pos
+        check("'foo'a", [posToken(name("foo"), 1, 1), posToken(name("a"), 1, 6), token(layout)]);
+
+        // continuation escape
+        check("'foo\\
+bar' a", 
+              [posToken(name("foobar"), 1, 1), token(layout), posToken(name("a"), 2, 6), token(layout)]);
+
+        // no continuation escape
+        switch(read("''' 
+               bar' ")) {
             case problem(unterminatedQuotedAtom({line: line, col: col})): {
                 Assert.equals(1, line);
                 Assert.equals(1, col);

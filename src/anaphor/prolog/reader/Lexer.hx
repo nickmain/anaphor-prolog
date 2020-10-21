@@ -46,6 +46,7 @@ enum LexerProblem {
     badCharacterCodeLiteral(start: CharPosition);
     badHexEscapeSequence(start: CharPosition);
     badOctalEscapeSequence(start: CharPosition);
+    unexpectedCharacter(pos: CharPosition);
     unknown(msg: String);
 }
 
@@ -276,26 +277,41 @@ class Lexer {
     }
 
     // ISO 6.4.2.1 Quoted characters
-    function readSingleQuotedChar(): Null<String> {
-        final nqc = readNonQuoteChar();
+    function readSingleQuotedChar(allowContinuationEscape: Bool = false): Null<String> {
+        return readQuotedChar(Char.singleQuote, Char.doubleQuote, Char.backQuote, allowContinuationEscape);
+    }
+
+    function readDoubleQuotedChar(allowContinuationEscape: Bool = false): Null<String> {
+        return readQuotedChar(Char.doubleQuote, Char.singleQuote, Char.backQuote, allowContinuationEscape);
+    }
+
+    function readBackQuotedChar(allowContinuationEscape: Bool = false): Null<String> {
+        return readQuotedChar(Char.backQuote, Char.doubleQuote, Char.singleQuote, allowContinuationEscape);
+    }
+
+    function readQuotedChar(primaryQuote: String,  // enclosing quote type
+                            quote2: String, quote3: String, // nested quote types
+                            allowContinuationEscape: Bool = false): Null<String> {
+
+        final nqc = readNonQuoteChar(allowContinuationEscape);
         if(! state.match(ready)) return null;
         if(nqc != null) return nqc;
 
         final c = line.charAt(index);
-        if(c == Char.doubleQuote) { index++; return c; }
-        if(c == Char.backQuote  ) { index++; return c; }
-        if(c == Char.singleQuote) { 
+        if(c == quote2) { index++; return c; }
+        if(c == quote3) { index++; return c; }
+        if(c == primaryQuote) { 
             final next = line.charAt(index + 1);
-            if(next == Char.singleQuote) {
+            if(next == primaryQuote) {
                 index += 2;
-                return Char.singleQuote;
+                return primaryQuote;
             }
         }
 
         return null;
     }
 
-    function readNonQuoteChar(): Null<String> {
+    function readNonQuoteChar(allowContinuationEscape: Bool = false): Null<String> {
         final c = line.charAt(index);
         if(Char.isGraphic(c)) { index++; return c; }
         if(Char.isAlphanumeric(c)) { index++; return c; }
@@ -322,6 +338,9 @@ class Lexer {
 
             if(next == Char.symbolicHexadecimal) return readHexEscape();
             if(Char.isOctalDigit(next)) return readOctalEscape();
+
+            // Backslash at end of line is continuation escape
+            if(allowContinuationEscape && next == "") return null;
 
             state = problem(badCharacterCodeLiteral(start));
             return null;
@@ -382,7 +401,7 @@ class Lexer {
         final buffer = new StringBuf();
 
         while(state.match(ready)) {
-            final sqc = readSingleQuotedChar();
+            final sqc = readSingleQuotedChar(true);
             if(sqc != null) {
                 buffer.addSub(sqc, 0, 1);
                 continue;
@@ -394,6 +413,12 @@ class Lexer {
                 index++;
                 return token(name(buffer.toString()));
             }
+            if(c == Char.backslash && line.charAt(index+1) == "") {
+                readNextLine();
+                continue;
+            }
+
+            return oops(unexpectedCharacter(here()));
         }
 
         return stateResult();
