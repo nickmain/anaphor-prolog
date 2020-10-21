@@ -37,6 +37,7 @@ enum LexerResult {
 enum LexerProblem {
     exception(ex: haxe.Exception);
     unterminatedBlockComment(start: CharPosition);
+    unterminatedQuotedAtom(start: CharPosition);
     badIntegerValue(start: CharPosition);
     badHexValue(start: CharPosition);
     badBinaryValue(start: CharPosition);
@@ -375,14 +376,27 @@ class Lexer {
     }
 
     function quotedAtom(): LexerResult {
-        this.start.col++; // skip the opening single quote
+        index++; // skip the opening single quote
 
-        final buf = new StringBuf();  // since this can span lines
+        // need a buffer since atom may span lines
+        final buffer = new StringBuf();
 
-        while(Char.isAlphanumeric(line.charAt(index))) index++;
-        // index is now at non-alpha char or EOL
+        while(state.match(ready)) {
+            final sqc = readSingleQuotedChar();
+            if(sqc != null) {
+                buffer.addSub(sqc, 0, 1);
+                continue;
+            } 
+            
+            final c = line.charAt(index);
+            if(c == "") return oops(unterminatedQuotedAtom(start));
+            if(c == Char.singleQuote) { 
+                index++;
+                return token(name(buffer.toString()));
+            }
+        }
 
-        return token(name(capture()));
+        return stateResult();
     }
 
     function variableToken(): LexerResult {

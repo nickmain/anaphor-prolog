@@ -216,7 +216,19 @@ class LexerTests extends utest.Test {
     }
     
     function testQuotedName() {
-        Assert.fail("unimplemented");	
+        check1("'' ", name(""));
+        check1("'''' ", name("'"));
+        check1("'\\'' ", name("'"));
+
+        check1("'hello\\n world \\x41\\' ", name("hello\n world A"));
+
+        switch(read("''' ")) {
+            case problem(unterminatedQuotedAtom({line: line, col: col})): {
+                Assert.equals(1, line);
+                Assert.equals(1, col);
+            }
+            default: Assert.fail("Expected unterminatedQuotedAtom");
+        }
     }
 
     function testMetaEscapes() {
