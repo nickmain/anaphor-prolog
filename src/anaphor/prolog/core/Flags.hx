@@ -36,7 +36,7 @@ class Flags {
     public var charConversion = CharConversion.on;
     public var debug = Debug.off;
     public var unknown = Unknown.error;
-    public var doubleQuotes = DoubleQuotes.codes;
+    public var doubleQuotes = DoubleQuotes.string; // non-ISO default for compat with SWI-Prolog
 
     public function new() {}
 
