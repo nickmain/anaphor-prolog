@@ -27,6 +27,7 @@ enum DoubleQuotes {
     chars;  // each char as an atom
     codes;  // numerical codes
     atom;   // as a single atom
+    string; // non-ISO, native string (default)
 }
 
 // ISO 7.11 Flags

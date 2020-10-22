@@ -2,6 +2,7 @@
 // Licensed under the MIT License, see LICENSE file for details.
 
 package unit;
+import anaphor.prolog.core.Flags.DoubleQuotes;
 import utest.Assert;
 import anaphor.prolog.reader.Lexer;
 import anaphor.prolog.reader.Lexer.Token;
@@ -52,8 +53,11 @@ class LexerTests extends utest.Test {
     }
 
     // tokenize the source string and compare against single expected token
-    function check1(src: String, expected: Token) {
+    function check1(src: String, expected: Token, ?doubleQuotes: DoubleQuotes) {
         final lexer = new Lexer(new StringInput(src));
+        if(doubleQuotes != null) {
+            lexer.doubleQuoteFlag = doubleQuotes;
+        }
 
         switch(lexer.read()) {
             case finished: { Assert.fail("finished before expected token"); return; }
@@ -290,7 +294,35 @@ bar' a",
     }
 
     function testStrings() {
-        Assert.fail("unimplemented");	
+        check1('"hello\\nworld"', string("hello\nworld", string));
+        check1('"hello\\nworld"', string("hello\nworld", codes), codes);
+
+        // no continuation escape
+        switch(read('"hello\nworld"')) {
+             case problem(unterminatedDoubleQuotedString({line: line, col: col})): {
+                 Assert.equals(1, line);
+                 Assert.equals(1, col);
+             }
+             default: Assert.fail("Expected unterminatedDoubleQuotedString");
+         }
+    }
+
+    function testBackQuotedString() {
+        check1('`hello\\nworld`', string("hello\nworld", codes));
+        check1('`hello\\nworld`', string("hello\nworld", codes), string); // always codes
+
+        // no continuation escape
+        switch(read('`hello\nworld`')) {
+             case problem(unterminatedBackQuotedString({line: line, col: col})): {
+                 Assert.equals(1, line);
+                 Assert.equals(1, col);
+             }
+             default: Assert.fail("Expected unterminatedBackQuotedString");
+         }
+    }
+
+    function testStringAsAtom() {
+        check1('"hello\\nworld"', name("hello\nworld"), atom);
     }
 
     function testVariables() {
@@ -298,29 +330,5 @@ bar' a",
             layout, name("foo"), layout, variable("Foo"), layout, variable("_foo"),
             layout, variable("_"), name("="), layout, variable("_"), endTerm, layout
         ]);
-    }
-
-    function testWhitespace() {
-        Assert.fail("unimplemented");	
-    }
-
-    function testEof() {
-        Assert.fail("unimplemented");	
-    }
-
-    function testParens() {
-        Assert.fail("unimplemented");	
-    }
-
-    function testCurlies() {
-        Assert.fail("unimplemented");	
-    }
-
-    function testLists() {
-        Assert.fail("unimplemented");	
-    }
-
-    function testExceptions() {
-        Assert.fail("unimplemented");	
     }
 }

@@ -38,6 +38,8 @@ enum LexerProblem {
     exception(ex: haxe.Exception);
     unterminatedBlockComment(start: CharPosition);
     unterminatedQuotedAtom(start: CharPosition);
+    unterminatedDoubleQuotedString(start: CharPosition);
+    unterminatedBackQuotedString(start: CharPosition);
     badIntegerValue(start: CharPosition);
     badHexValue(start: CharPosition);
     badBinaryValue(start: CharPosition);
@@ -57,7 +59,7 @@ private enum LexerState {
 }
 
 class Lexer {
-    public var doubleQuoteFlag = DoubleQuotes.codes;
+    public var doubleQuoteFlag = DoubleQuotes.string; // for compat with SWI-Prolog
     public var charConversion = false;
     public var charConvertor: Null<CharConverter>;
 
@@ -128,8 +130,10 @@ class Lexer {
         if(Char.isDecimalDigit(char)) return readNumber(char);
 
         // ISO 6.4.6 Doubled quoted lists, aka Strings
+        if(char == Char.doubleQuote) return stringTerm();
 
         // ISO 6.4.7 Back quoted strings
+        if(char == Char.backQuote) return backquoteString();
 
         return finished;
     }
@@ -392,6 +396,78 @@ class Lexer {
 
         state = problem(badOctalEscapeSequence({line: start.line, col: octalStart+1}));
         return null;
+    }
+
+    function backquoteString(): LexerResult {
+        index++; // skip the opening single quote
+
+        // need a buffer since string may span lines
+        final buffer = new StringBuf();
+
+        while(state.match(ready)) {
+            final bqc = readBackQuotedChar(true);
+            if(bqc != null) {
+                buffer.addSub(bqc, 0, 1);
+                continue;
+            } 
+            
+            final c = line.charAt(index);
+            if(c == "") return oops(unterminatedBackQuotedString(start));
+            if(c == Char.backQuote) { 
+                index++;
+                // backquoted string always represents as char code list (implementation choice)
+                return token(string(buffer.toString(), codes));
+            }
+            if(c == Char.backslash && line.charAt(index+1) == "") {
+                readNextLine();
+                continue;
+            }
+
+            return oops(unexpectedCharacter(here()));
+        }
+
+        return stateResult();
+    }
+
+    function stringTerm(): LexerResult {
+        index++; // skip the opening single quote
+
+        // need a buffer since string may span lines
+        final buffer = new StringBuf();
+
+        while(state.match(ready)) {
+            final dqc = readDoubleQuotedChar(true);
+            if(dqc != null) {
+                buffer.addSub(dqc, 0, 1);
+                continue;
+            } 
+            
+            final c = line.charAt(index);
+            if(c == "") return oops(unterminatedDoubleQuotedString(start));
+            if(c == Char.doubleQuote) { 
+                index++;
+                final text = buffer.toString();
+                switch(doubleQuoteFlag) {
+                    case atom: {
+                        // convert string to a single atom
+                        return token(name(text));
+                    }
+
+                    default: {
+                        // chars and codes can be handled higher up
+                        return token(string(text, doubleQuoteFlag));
+                    }
+                }
+            }
+            if(c == Char.backslash && line.charAt(index+1) == "") {
+                readNextLine();
+                continue;
+            }
+
+            return oops(unexpectedCharacter(here()));
+        }
+
+        return stateResult();
     }
 
     function quotedAtom(): LexerResult {
