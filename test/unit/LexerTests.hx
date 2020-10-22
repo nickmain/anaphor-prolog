@@ -212,7 +212,10 @@ class LexerTests extends utest.Test {
     }
     
     function testNames() {
-        Assert.fail("unimplemented");	
+        check1("a_b_c", name("a_b_c"));
+        check1("a2b", name("a2b"));
+        check("a+b", [token(name("a")), token(name("+")), token(name("b")), token(layout)]);
+        check("a;b", [token(name("a")), token(name(";")), token(name("b")), token(layout)]);
     }
     
     function testQuotedName() {
@@ -279,11 +282,11 @@ bar' a",
     }
     
     function testLineEndComments() {
-        Assert.fail("unimplemented");	
+        check("a%foo\nb", [token(name("a")), token(layout), posToken(name("b"), 2, 1), token(layout)]);
     }
 
     function testBlockComments() {
-        Assert.fail("unimplemented");	
+        check("a/*foo\nbar\n*/b", [token(name("a")), token(layout), posToken(name("b"), 3, 3), token(layout)]);
     }
 
     function testStrings() {
