@@ -250,19 +250,25 @@ bar' a",
     }
 
     function testMetaEscapes() {
-        Assert.fail("unimplemented");	
+        check1("'\\\\\\'\\\"\\`'", name("\\'\"`"));
     }
 
     function testControlEscapes() {
-        Assert.fail("unimplemented");	
+        check1("'\\a'", name("\x07"));
+        check1("'\\b'", name("\x08"));
+        check1("'\\r'", name("\r"  ));
+        check1("'\\f'", name("\x0C"));
+        check1("'\\t'", name("\t"  ));
+        check1("'\\n'", name("\n"  ));
+        check1("'\\v'", name("\x0B"));
     }
 
     function testOctalEscapes() {
-        Assert.fail("unimplemented");	
+        check1("'\\101\\'", name("A"));	
     }
 
     function testHexEscapes() {
-        Assert.fail("unimplemented");	
+        check1("'\\x41\\'", name("A"));	
     }
 
     function testTermEnd() {
