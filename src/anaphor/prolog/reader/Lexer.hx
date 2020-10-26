@@ -5,7 +5,6 @@ package anaphor.prolog.reader;
 
 import anaphor.prolog.reader.CharConversionTable.CharConverter;
 import haxe.io.Input;
-import anaphor.prolog.core.Flags;
 import anaphor.prolog.core.Flags.DoubleQuotes;
 
 enum Token {
