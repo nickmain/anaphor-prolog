@@ -337,4 +337,8 @@ bar' a",
             layout, variable("_"), name("="), layout, variable("_"), endTerm, layout
         ]);
     }
+
+    function testCharConversion() {
+        Assert.warn("Unimplemented");
+    }
 }
