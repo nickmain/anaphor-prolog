@@ -57,7 +57,7 @@ private enum LexerState {
     problem(problem: LexerProblem); // stop - problem was encountered
 }
 
-private enum CharConvertorState {
+private enum CharConverterState {
     insideQuote(quoteChar: String);
     outsideQuote;
 }
@@ -65,7 +65,7 @@ private enum CharConvertorState {
 class Lexer {
     public var doubleQuoteFlag = DoubleQuotes.string; // for compat with SWI-Prolog
     public var charConversion = false;
-    public var charConvertor: Null<CharConverter>;
+    public var charConverter: Null<CharConverter>;
 
     final input: Input;
     var lineNum = 0;
@@ -73,7 +73,7 @@ class Lexer {
     var line = "";
     var state = LexerState.ready;
     var start: CharPosition = {line: 1, col: 1};
-    var convertorState = CharConvertorState.outsideQuote;
+    var converterState = CharConverterState.outsideQuote;
     
     public function new(input: Input) {
         this.input = input;
@@ -606,8 +606,8 @@ class Lexer {
             index = 0;
             state = ready;
 
-            if(charConversion && charConvertor != null) {
-
+            if(charConversion && charConverter != null) {
+                convertLine();
             }
         } 
         catch(_: haxe.io.Eof) {
@@ -616,6 +616,12 @@ class Lexer {
         catch(e) {
             state = problem(exception(e));
         }
+    }
+
+    // Apply char conversion to the just-loaded line
+    // Chars inside quoted atoms or quoted strings are not converted
+    function convertLine() {
+        // NOT YET IMPLEMENTED
     }
 
     // Capture the curent line and index as a position

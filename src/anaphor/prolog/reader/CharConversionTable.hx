@@ -12,7 +12,7 @@ class CharConversionTable {
 
     public function new() {}
 
-    public function convert(char: String) -> String {
+    public function convert(char: String): String {
         final mapped = mapping.get(char);
         if(mapped != null) return mapped;
         return char;
