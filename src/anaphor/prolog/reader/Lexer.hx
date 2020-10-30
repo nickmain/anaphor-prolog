@@ -57,6 +57,11 @@ private enum LexerState {
     problem(problem: LexerProblem); // stop - problem was encountered
 }
 
+private enum CharConvertorState {
+    insideQuote(quoteChar: String);
+    outsideQuote;
+}
+
 class Lexer {
     public var doubleQuoteFlag = DoubleQuotes.string; // for compat with SWI-Prolog
     public var charConversion = false;
@@ -68,6 +73,7 @@ class Lexer {
     var line = "";
     var state = LexerState.ready;
     var start: CharPosition = {line: 1, col: 1};
+    var convertorState = CharConvertorState.outsideQuote;
     
     public function new(input: Input) {
         this.input = input;
@@ -599,6 +605,10 @@ class Lexer {
             lineNum++;
             index = 0;
             state = ready;
+
+            if(charConversion && charConvertor != null) {
+
+            }
         } 
         catch(_: haxe.io.Eof) {
             state = finished;
