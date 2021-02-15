@@ -20,7 +20,7 @@
 		"scope": "",
 		"prefix": "copyright",
 		"body": [
-			"// Copyright © ${1:2020}, David N Main. All rights reserved.",
+			"// Copyright © ${1:2021}, David N Main. All rights reserved.",
 			"// Licensed under the MIT License, see LICENSE file for details.",
 			"",
 			"$2"
