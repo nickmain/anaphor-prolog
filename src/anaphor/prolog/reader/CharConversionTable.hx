@@ -3,12 +3,10 @@
 
 package anaphor.prolog.reader;
 
-import haxe.ds.StringMap;
-
 typedef CharConverter = (String) -> String;
 
 class CharConversionTable {
-    public final mapping = new StringMap<String>();
+    public final mapping = new Map<String, String>();
 
     public function new() {}
 
